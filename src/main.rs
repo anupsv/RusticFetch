@@ -68,3 +68,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     futures::future::join_all(tasks).await;
     Ok(())
 }
+
+#[cfg(test)]
+mod cli_tests {
+    use assert_cmd::Command;
+
+    #[test]
+    fn test_help_output() {
+        let mut cmd = Command::cargo_bin("RusticFetch").unwrap();
+        cmd.arg("--help");
+        cmd.assert().success();
+    }
+
+    #[test]
+    fn test_invalid_url() {
+        let mut cmd = Command::cargo_bin("RusticFetch").unwrap();
+        cmd.arg("invalid_url");
+        cmd.assert().success();
+    }
+}

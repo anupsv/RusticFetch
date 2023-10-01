@@ -108,3 +108,19 @@ impl Downloader {
         }
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_successful_download() {
+        let downloader = Downloader::new(2);
+        let url = "https://example.com/test.mp4"; // Use a mock URL or a real test file
+        let result = downloader.download(&url, &Path::new("/tmp")).await;
+        assert!(result.is_ok());
+    }
+
+    // Add more tests, e.g., for failed downloads, fragmented downloads, etc.
+}
