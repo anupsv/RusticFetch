@@ -4,6 +4,8 @@ use reqwest;
 use std::path::{Path};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
+use log::info;
+use log::debug;
 
 pub struct Downloader {
     pub client: reqwest::Client,
@@ -29,8 +31,8 @@ impl Downloader {
     }
 
     pub async fn download(&self, url: &str, dir: &Path) -> Result<(), DownloadError> {
-
-        println!(
+        debug!("Fetching URL: {}", url);
+        info!(
             "Downloading URL: {} on thread {:?}",
             url,
             std::thread::current().name().unwrap_or("unknown")
@@ -91,7 +93,7 @@ impl Downloader {
                 tokio::fs::remove_file(path).await?;
             }
 
-            println!("Downloaded: {}", url);
+            info!("Downloaded: {}", url);
             Ok(())
 
         } else {
@@ -101,7 +103,7 @@ impl Downloader {
             let path = dir.join(Path::new(url).file_name().unwrap());
             tokio::fs::write(&path, bytes).await?;
 
-            println!("Downloaded (without fragmentation): {}", url);
+            info!("Downloaded (without fragmentation): {}", url);
             Ok(())
         }
     }

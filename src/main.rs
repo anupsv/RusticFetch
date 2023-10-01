@@ -8,58 +8,38 @@ use num_cpus;
 use std::path::PathBuf;
 use std::fs;
 use futures;
-use std::fmt;
-use std::error::Error;
-
+use log::info;
 
 #[derive(StructOpt, Debug)]
+#[structopt(name = "rustic-fetch", about = "A multi-threaded MP4 downloader.")]
 struct Opt {
-    #[structopt(short, long, default_value = "4", parse(try_from_str = parse_threads))]
-    threads: usize,
+    /// URLs to download
+    #[structopt(name = "URL", parse(try_from_str))]
+    urls: Vec<String>,
 
-    #[structopt(short, long, parse(from_os_str))]
+    /// Directory to save the downloads
+    #[structopt(short, long, parse(from_os_str), default_value = ".")]
     dir: PathBuf,
 
-    #[structopt(name = "URL")]
-    urls: Vec<String>,
-}
+    /// Enable verbose logging
+    #[structopt(short, long)]
+    verbose: bool,
 
-#[derive(Debug)]
-enum ThreadParseError {
-    ParseError(std::num::ParseIntError),
-    TooManyThreads,
-}
+    /// Number of threads to use for downloading
+    #[structopt(short = "t", long = "threads", default_value = "4")]
+    threads: usize,
 
-impl fmt::Display for ThreadParseError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            ThreadParseError::ParseError(e) => write!(f, "Parse error: {}", e),
-            ThreadParseError::TooManyThreads => write!(f, "Specified number of threads exceeds available CPUs"),
-        }
-    }
-}
-
-impl Error for ThreadParseError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            ThreadParseError::ParseError(e) => Some(e),
-            ThreadParseError::TooManyThreads => None,
-        }
-    }
-}
-
-fn parse_threads(src: &str) -> Result<usize, ThreadParseError> {
-    let parsed_value = src.parse::<usize>().map_err(ThreadParseError::ParseError)?;
-    if parsed_value > num_cpus::get() {
-        Err(ThreadParseError::TooManyThreads)
-    } else {
-        Ok(parsed_value)
-    }
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut opt = Opt::from_args();
+
+    if opt.verbose {
+        env_logger::Builder::new().filter_level(log::LevelFilter::Debug).init();
+    } else {
+        env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
+    }
 
     // Ensure the number of threads does not exceed the number of available CPU cores
     if opt.threads > num_cpus::get() {
@@ -75,6 +55,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::process::exit(1);
     }
 
+    info!("Starting download...");
 
     let tasks: Vec<_> = opt.urls.into_iter().map(|url| {
         // Clone the client for each task
