@@ -117,6 +117,6 @@ mod cli_tests {
     fn test_invalid_url() {
         let mut cmd = Command::cargo_bin("RusticFetch").unwrap();
         cmd.arg("invalid_url");
-        cmd.assert().success();
+        cmd.assert().failure();
     }
 }
