@@ -12,7 +12,7 @@ use std::fs;
 use futures;
 use async_trait::async_trait;
 #[cfg(test)]
-use mockall::{automock, mock, predicate::*};
+use mockall::{automock, predicate::*};
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(name = "rustic-fetch", about = "A multi-threaded MP4 downloader.")]
