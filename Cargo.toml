@@ -13,7 +13,9 @@ futures = "0.3.28"
 env_logger = "0.9"
 log = "0.4"
 indicatif = "0.15"
+async-trait = "0.1.73"
 
 [dev-dependencies]
 assert_cmd = "1.0"
 mockito = "0.30"
+mockall = "0.11.2"
