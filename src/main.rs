@@ -115,9 +115,9 @@ impl AppRunner for App {
             let file_content = std::fs::read_to_string(file_path)?;
             if opt.curl_format {
                 for line in file_content.lines() {
-                    let (_url, headers) = helpers::parse_curl_command(line)?;
+                    let (url, headers) = helpers::parse_curl_command(line)?;
                     headers_parsed = headers;
-                    // Store the URL and headers for later use
+                    urls.push(url.clone());
                 }
             } else {
                 urls.extend(file_content.lines().map(|line| line.to_string()));
