@@ -1,5 +1,5 @@
 [package]
-name = "RusticFetch"
+name = "rustic_fetch"
 version = "0.1.0"
 authors = ["anupsv"]
 edition = "2021"
