@@ -43,13 +43,77 @@ After building, you can run RusticFetch using:
 - **-d, --dir <DIRECTORY>**: Specify the directory where the downloaded files will be saved. Defaults to the current directory.
 - **-v, --verbose**: Enable verbose logging to get detailed logs of the download process.
 
-## Example
+Certainly! Let's provide examples for each option and combination of options to give users a clear understanding of how to use RusticFetch.
 
-To download two files and save them in the `downloads` directory with verbose logging:
+---
+
+## Examples
+
+### Basic Download
+
+To download a single file:
 
 ```bash
-./target/release/rusticfetch -v -d downloads https://example.com/file1.mp4 https://example.com/file2.mp4
+./target/release/rusticfetch https://example.com/file1.mp4
 ```
+
+### Download Multiple Files
+
+To download multiple files:
+
+```bash
+./target/release/rusticfetch https://example.com/file1.mp4 https://example.com/file2.mp4
+```
+
+### Specify Download Directory
+
+To download files into a specific directory, such as `downloads`:
+
+```bash
+./target/release/rusticfetch -d downloads https://example.com/file1.mp4
+```
+
+### Download from a File
+
+To download URLs listed in a file, `urls.txt`:
+
+```bash
+./target/release/rusticfetch -f urls.txt
+```
+
+### Download from a Curl-formatted File
+
+If `urls.txt` contains curl commands:
+
+```bash
+./target/release/rusticfetch -f urls.txt --curl-format
+```
+
+### Specify Number of Threads
+
+To download using a specific number of threads, for instance, 8 threads:
+
+```bash
+./target/release/rusticfetch -t 8 https://example.com/file1.mp4
+```
+
+### Verbose Logging
+
+To enable verbose logging:
+
+```bash
+./target/release/rusticfetch -v https://example.com/file1.mp4
+```
+
+### Combining Options
+
+To combine multiple options, such as downloading from a curl-formatted file with verbose logging, 8 threads, and saving to the `downloads` directory:
+
+```bash
+./target/release/rusticfetch -f urls.txt --curl-format -v -t 8 -d downloads
+```
+
+---
 
 ## Contributing
 

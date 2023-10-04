@@ -30,7 +30,7 @@ impl Downloader {
         Ok(len)
     }
 
-    pub async fn download(&self, url: &str, dir: &Path) -> Result<(), DownloadError> {
+    pub async fn download(&self, url: &str, headers: &Vec<String>, dir: &Path) -> Result<(), DownloadError> {
         debug!("Fetching URL: {}", url);
         info!(
             "Downloading URL: {} on thread {:?}",
@@ -64,10 +64,21 @@ impl Downloader {
                 let client = self.client.clone();
                 let url = url.to_string();
                 let dir = dir.to_path_buf();
+                let extra_headers = headers.clone();
 
                 let handle = tokio::spawn(async move {
-                    let range = format!("bytes={}-{}", start, end);
-                    let resp = client.get(&url).header(reqwest::header::RANGE, range).send().await?;
+                    let range_header = format!("bytes={}-{}", start, end);
+                    let mut request = client.get(url);
+                    // Add headers to the request
+                    for header in extra_headers.iter() {
+                        let mut parts = header.splitn(2, ':');
+                        if let (Some(name), Some(value)) = (parts.next(), parts.next()) {
+                            request = request.header(name.trim(), value.trim());
+                        }
+                    }
+                    request = request.header(reqwest::header::RANGE, &range_header);
+
+                    let resp = request.send().await?;
                     let content = resp.bytes().await?;
                     let path = dir.join(format!("fragment_{}", i));
                     let _ = tokio::fs::write(&path, content).await.map_err(|e| DownloadError::Other(e.to_string()));
@@ -97,7 +108,14 @@ impl Downloader {
             Ok(())
 
         } else {
-            let response = self.client.get(url).send().await?;
+            let mut request = self.client.get(url);
+            for header in headers {
+                let mut parts = header.splitn(2, ':');
+                if let (Some(name), Some(value)) = (parts.next(), parts.next()) {
+                    request = request.header(name.trim(), value.trim());
+                }
+            }
+            let response = request.send().await?;
             let bytes = response.bytes().await?;
 
             let path = dir.join(Path::new(url).file_name().unwrap());
