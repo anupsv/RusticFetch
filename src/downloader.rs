@@ -171,13 +171,49 @@ impl Downloader {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tokio::runtime::Runtime;
 
-    #[tokio::test]
-    async fn test_successful_download() {
+    #[test]
+    fn test_successful_download() {
+        let runtime = Runtime::new().unwrap();
+        let downloader = Downloader::new(2); // Assuming you have a constructor for Downloader
+        let url = "https://www.example.com/sample.txt";
+        let headers = vec![];
+
+        runtime.block_on(downloader.download(url, &headers, Path::new("/tmp"))).unwrap();
+
+        assert!(Path::new("/tmp/sample.txt").exists());
+    }
+
+    #[test]
+    fn test_file_overwrite_prevention() {
+        let runtime = Runtime::new().unwrap();
         let downloader = Downloader::new(2);
-        let url = "https://example.com/test.mp4"; // Use a mock URL or a real test file
-        let headers = Vec::new();
-        let result = downloader.download(&url, &headers, &Path::new("/tmp")).await;
-        assert!(result.is_ok());
+        let url = "https://www.example.com/sample.txt";
+        let headers = vec![];
+
+        // Create a dummy file
+        fs::write("/tmp/sample.txt", b"dummy content").unwrap();
+
+        runtime.block_on(downloader.download(url, &headers, Path::new("/tmp"))).unwrap();
+
+        let content = fs::read_to_string("/tmp/sample.txt").unwrap();
+        assert_eq!(content, "dummy content");
+    }
+
+    #[test]
+    fn test_file_already_exists() {
+        let downloader = Downloader::new(2);
+        let url = "https://example.com/sample.txt";
+        let headers = vec![];
+        let dir = Path::new("/tmp");
+        fs::write(dir.join("sample.txt"), b"dummy content").unwrap();
+
+        let rt = Runtime::new().unwrap();
+        rt.block_on(downloader.download(url, &headers, dir)).unwrap();
+
+        let content = fs::read_to_string(dir.join("sample.txt")).unwrap();
+        assert_eq!(content, "dummy content"); // Ensure the file wasn't overwritten
     }
 }

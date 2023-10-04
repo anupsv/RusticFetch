@@ -4,7 +4,7 @@ all: macos linux windows
 
 macos:
 	cross build --release --target=aarch64-apple-darwin
-	cp target/aarch64-apple-darwin/release/RusticFetch dist/RusticFetch_macos
+	cp target/aarch64-apple-darwin/release/rustic_fetch dist/rustic_fetch
 
 linux:
 	cross build --release --target=x86_64-unknown-linux-gnu

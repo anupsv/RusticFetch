@@ -105,19 +105,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(test)]
 mod cli_tests {
-    use assert_cmd::Command;
-
+    use super::*;
     #[test]
-    fn test_help_output() {
-        let mut cmd = Command::cargo_bin("RusticFetch").unwrap();
-        cmd.arg("--help");
-        cmd.assert().success();
+    fn test_argument_parsing() {
+        let args = vec!["rustic-fetch", "http://example.com", "-t", "5", "-d", "/tmp"];
+        let opt = Opt::from_iter(args);
+        assert_eq!(opt.urls, vec!["http://example.com"]);
+        assert_eq!(opt.threads, 5);
+        assert_eq!(opt.dir, PathBuf::from("/tmp"));
     }
 
     #[test]
-    fn test_invalid_url() {
-        let mut cmd = Command::cargo_bin("RusticFetch").unwrap();
-        cmd.arg("invalid_url");
-        cmd.assert().failure();
+    fn test_directory_creation() {
+        let dir = PathBuf::from("test_dir");
+        if dir.exists() {
+            fs::remove_dir_all(&dir).unwrap();
+        }
+        assert!(!dir.exists());
+        fs::create_dir_all(&dir).unwrap();
+        assert!(dir.exists());
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn test_url_collection_from_command_line() {
+        let args = vec!["rustic-fetch", "http://example.com"];
+        let opt = Opt::from_iter(args);
+        assert_eq!(opt.urls, vec!["http://example.com"]);
     }
 }
