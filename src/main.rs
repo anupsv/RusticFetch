@@ -1,5 +1,5 @@
 mod downloader;
-pub mod errors;
+mod errors;
 mod helpers;
 
 use downloader::Downloader;

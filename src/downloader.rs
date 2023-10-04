@@ -1,11 +1,14 @@
 
-use super::errors::DownloadError;
+use crate::errors::DownloadError;
 use reqwest;
 use std::path::{Path};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use log::info;
 use log::debug;
+use crate::helpers::apply_headers;
+use indicatif::{ProgressBar, ProgressStyle, MultiProgress};
+use futures::StreamExt;
 
 pub struct Downloader {
     pub client: reqwest::Client,
@@ -30,6 +33,92 @@ impl Downloader {
         Ok(len)
     }
 
+    pub async fn download_segmented(&self, url: &str, headers: &Vec<String>, dir: &Path) -> Result<(), DownloadError> {
+        debug!("Fetching URL: {}", url);
+        info!(
+        "Downloading URL: {} on thread {:?}",
+        url,
+        std::thread::current().name().unwrap_or("unknown")
+    );
+
+        let total_size = self.fetch_size(url).await?;
+        let fragment_size = total_size / self.fragments as u64;
+
+        let mut handles = vec![];
+
+        let m = MultiProgress::new();
+        let pb_main = m.add(ProgressBar::new(self.fragments as u64));
+        pb_main.set_style(ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} fragments ({eta})")
+            .progress_chars("#>-"));
+
+        for i in 0..self.fragments {
+            let start = i as u64 * fragment_size;
+            let end = if i == self.fragments - 1 {
+                total_size - 1
+            } else {
+                start + fragment_size - 1
+            };
+
+            let client = self.client.clone();
+            let url = url.to_string();
+            let dir = dir.to_path_buf();
+            let extra_headers = headers.clone();
+
+            let pb = m.add(ProgressBar::new(fragment_size));
+            pb.set_style(ProgressStyle::default_bar()
+                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})")
+                .progress_chars("#>-"));
+
+            let handle = tokio::spawn(async move {
+                let range_header = format!("bytes={}-{}", start, end);
+                // Add headers to the request
+                let mut request = apply_headers(client.get(url), &extra_headers);
+                request = request.header(reqwest::header::RANGE, &range_header);
+
+                let mut resp = request.send().await?;
+                let mut content = Vec::new();;
+                while let Some(chunk) = resp.chunk().await? {
+                    content.extend_from_slice(&chunk);
+                    pb.inc(chunk.len() as u64);
+                }
+
+                // pb.finish_and_clear();
+                // pb_main.inc(1);
+
+                let path = dir.join(format!("fragment_{}", i));
+                let _ = tokio::fs::write(&path, content).await.map_err(|e| DownloadError::Other(e.to_string()));
+                Ok::<_, reqwest::Error>(path)
+            });
+
+            handles.push(handle);
+        }
+
+        // tokio::spawn(m.join());
+
+        let mut paths = Vec::new();
+        for handle in handles {
+            let path = handle.await??;
+            paths.push(path);
+        }
+
+        // Combine fragments
+        let dest_path = dir.join(Path::new(url).file_name().unwrap());
+        let mut dest = File::create(&dest_path).await?;
+
+        for path in paths {
+            let content = tokio::fs::read(&path).await?;
+            dest.write_all(&content).await?;
+            tokio::fs::remove_file(path).await?;
+        }
+
+        pb_main.finish_with_message("All fragments downloaded!");
+
+        info!("Downloaded: {}", url);
+        Ok(())
+    }
+
+
     pub async fn download(&self, url: &str, headers: &Vec<String>, dir: &Path) -> Result<(), DownloadError> {
         debug!("Fetching URL: {}", url);
         info!(
@@ -48,78 +137,29 @@ impl Downloader {
         }
 
         if self.supports_range(url).await? {
-            let total_size = self.fetch_size(url).await?;
-            let fragment_size = total_size / self.fragments as u64;
+            self.download_segmented(url, headers, dir).await
+        } else {
 
-            let mut handles = vec![];
+            let request = apply_headers(self.client.get(url), &headers);
+            let mut response = request.send().await?;
 
-            for i in 0..self.fragments {
-                let start = i as u64 * fragment_size;
-                let end = if i == self.fragments - 1 {
-                    total_size - 1
-                } else {
-                    start + fragment_size - 1
-                };
+            // Code for download progress
+            let total_size = response.content_length().unwrap_or(0);
+            let pb = ProgressBar::new(total_size);
+            pb.set_style(ProgressStyle::default_bar()
+                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})")
+                .progress_chars("#>-"));
 
-                let client = self.client.clone();
-                let url = url.to_string();
-                let dir = dir.to_path_buf();
-                let extra_headers = headers.clone();
-
-                let handle = tokio::spawn(async move {
-                    let range_header = format!("bytes={}-{}", start, end);
-                    let mut request = client.get(url);
-                    // Add headers to the request
-                    for header in extra_headers.iter() {
-                        let mut parts = header.splitn(2, ':');
-                        if let (Some(name), Some(value)) = (parts.next(), parts.next()) {
-                            request = request.header(name.trim(), value.trim());
-                        }
-                    }
-                    request = request.header(reqwest::header::RANGE, &range_header);
-
-                    let resp = request.send().await?;
-                    let content = resp.bytes().await?;
-                    let path = dir.join(format!("fragment_{}", i));
-                    let _ = tokio::fs::write(&path, content).await.map_err(|e| DownloadError::Other(e.to_string()));
-                    Ok::<_, reqwest::Error>(path)
-                });
-
-                handles.push(handle);
-            }
-
-            let mut paths = Vec::new();
-            for handle in handles {
-                let path = handle.await??;
-                paths.push(path);
-            }
-
-            // Combine fragments
-            let dest_path = dir.join(Path::new(url).file_name().unwrap());
+            let mut source = response.bytes_stream();
             let mut dest = File::create(&dest_path).await?;
 
-            for path in paths {
-                let content = tokio::fs::read(&path).await?;
-                dest.write_all(&content).await?;
-                tokio::fs::remove_file(path).await?;
+            while let Some(chunk) = source.next().await {
+                let chunk = chunk?;
+                dest.write_all(&chunk).await?;
+                pb.inc(chunk.len() as u64);
             }
 
-            info!("Downloaded: {}", url);
-            Ok(())
-
-        } else {
-            let mut request = self.client.get(url);
-            for header in headers {
-                let mut parts = header.splitn(2, ':');
-                if let (Some(name), Some(value)) = (parts.next(), parts.next()) {
-                    request = request.header(name.trim(), value.trim());
-                }
-            }
-            let response = request.send().await?;
-            let bytes = response.bytes().await?;
-
-            let path = dir.join(Path::new(url).file_name().unwrap());
-            tokio::fs::write(&path, bytes).await?;
+            pb.finish_with_message("Download completed!");
 
             info!("Downloaded (without fragmentation): {}", url);
             Ok(())
@@ -139,6 +179,4 @@ mod tests {
         let result = downloader.download(&url, &Path::new("/tmp")).await;
         assert!(result.is_ok());
     }
-
-    // Add more tests, e.g., for failed downloads, fragmented downloads, etc.
 }

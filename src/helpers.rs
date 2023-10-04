@@ -25,3 +25,15 @@ pub fn parse_curl_command(command: &str) -> Result<(String, Vec<String>), Box<dy
         Ok((url, headers))
     }
 }
+
+pub fn apply_headers(request: reqwest::RequestBuilder, headers: &Vec<String>) -> reqwest::RequestBuilder {
+    let mut req = request;
+    for header in headers {
+        let mut parts = header.splitn(2, ':');
+        if let (Some(name), Some(value)) = (parts.next(), parts.next()) {
+            req = req.header(name.trim(), value.trim());
+        }
+    }
+    req
+}
+
