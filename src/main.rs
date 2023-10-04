@@ -11,7 +11,6 @@ use std::fs;
 use futures;
 use log::info;
 use log::error;
-use log::debug;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "rustic-fetch", about = "A multi-threaded MP4 downloader.")]
@@ -80,6 +79,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         } else {
             urls.extend(file_content.lines().map(|line| line.to_string()));
         }
+    } else {
+        urls.extend(opt.urls);
     }
 
     if urls.is_empty() {

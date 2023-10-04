@@ -77,7 +77,7 @@ impl Downloader {
                 request = request.header(reqwest::header::RANGE, &range_header);
 
                 let mut resp = request.send().await?;
-                let mut content = Vec::new();;
+                let mut content = Vec::new();
                 while let Some(chunk) = resp.chunk().await? {
                     content.extend_from_slice(&chunk);
                     pb.inc(chunk.len() as u64);
@@ -141,7 +141,7 @@ impl Downloader {
         } else {
 
             let request = apply_headers(self.client.get(url), &headers);
-            let mut response = request.send().await?;
+            let response = request.send().await?;
 
             // Code for download progress
             let total_size = response.content_length().unwrap_or(0);
