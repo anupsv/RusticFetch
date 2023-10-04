@@ -12,3 +12,7 @@ num_cpus = "1.13"
 futures = "0.3.28"
 env_logger = "0.9"
 log = "0.4"
+
+[dev-dependencies]
+assert_cmd = "1.0"
+mockito = "0.30"
