@@ -50,13 +50,13 @@ struct App {
 #[async_trait]
 #[cfg_attr(test, automock)]
 pub trait AppRunner {
-    fn new(opt: Opt) -> Self;
+    fn init(opt: Opt) -> Self;
     async fn run(&self) -> Result<(), Box<dyn std::error::Error>>;
 }
 
 #[async_trait]
 impl AppRunner for App {
-    fn new(opt: Opt) -> Self {
+    fn init(opt: Opt) -> Self {
         Self { opt }
     }
 
@@ -95,6 +95,7 @@ impl AppRunner for App {
 
         // Ensure the number of threads does not exceed the number of available CPU cores
         if opt.threads > num_cpus::get() {
+            error!("Error: {}", opt.threads);
             opt.threads = num_cpus::get();
         }
 
@@ -150,7 +151,7 @@ impl AppRunner for App {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opt = Opt::from_args();
-    let app = App::new(opt);
+    let app = App::init(opt);
     app.run().await
 }
 
@@ -160,13 +161,14 @@ mod cli_tests {
 
     // #[tokio::test]
     // async fn test_run() {
-    //     let args = vec!["rustic-fetch", "http://example.com", "-t", "5", "-d", "/tmp"];
+    //     let args = vec!["rustic-fetch", "http://example.com", "-t", "1125", "-d", "/tmp"];
     //     let opt = Opt::from_iter(args);
-    //     let mut mock_app = MockAppRunner::new(opt);
-    //     mock_app.expect_run().times(1).returning(|| Box::pin(async { Ok(()) }));
-    //
-    //     let result = mock_app.run().await;
-    //     assert!(result.is_ok());
+    //     let mut mock_app = MockAppRunner::new();
+    //     mock_app.init(opt);
+    //     // mock_app.expect_run().times(1).returning(|| Box::pin(async { Ok(()) }));
+    //     //
+    //     // let result = mock_app.run().await;
+    //     // assert!(result.is_ok());
     // }
 
     #[test]
