@@ -16,7 +16,7 @@ Before running RusticFetch, ensure you have Rust and Cargo installed. If not, [i
 Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/rusticfetch.git
+git clone https://github.com/anupsv/rusticfetch.git
 cd rusticfetch
 ```
 
@@ -60,5 +60,3 @@ We welcome contributions! If you find a bug or have suggestions, please open an 
 This project is licensed under the MIT License. See the `LICENSE` file for details.
 
 ---
-
-Remember to adjust the repository URL and any other specific details to match your project's actual details.
