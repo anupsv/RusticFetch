@@ -83,9 +83,6 @@ impl Downloader {
                     pb.inc(chunk.len() as u64);
                 }
 
-                // pb.finish_and_clear();
-                // pb_main.inc(1);
-
                 let path = dir.join(format!("fragment_{}", i));
                 let _ = tokio::fs::write(&path, content).await.map_err(|e| DownloadError::Other(e.to_string()));
                 Ok::<_, reqwest::Error>(path)
@@ -94,7 +91,11 @@ impl Downloader {
             handles.push(handle);
         }
 
-        // tokio::spawn(m.join());
+        tokio::spawn(async move {
+            if let Err(e) = m.join() {
+                log::error!("Error joining thread: {}", e);
+            }
+        });
 
         let mut paths = Vec::new();
         for handle in handles {
